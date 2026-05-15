@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Selection Style Exporter</title>
+    <title>Figma AI Context Bridge</title>
     <style>
       :root {
         color-scheme: light;
@@ -130,12 +130,18 @@
       .diagnostics-error {
         color: #b42318;
       }
+
+      .section-title {
+        margin: 0 0 8px;
+        font-weight: 600;
+        grid-column: 1 / -1;
+      }
     </style>
   </head>
   <body>
     <main id="panel">
       <section id="mcp-diagnostics">
-        <div class="diagnostics-title">MCP Diagnostics</div>
+        <div class="diagnostics-title">AI Agent Bridge</div>
         <div class="diagnostics-grid">
           <div class="diagnostics-key">Connection</div>
           <div class="diagnostics-value" id="mcp-connection">Waiting for config</div>
@@ -151,16 +157,8 @@
           <div class="diagnostics-value diagnostics-error" id="mcp-last-error">-</div>
         </div>
       </section>
-      <div class="row">
-        <select id="profile">
-          <option value="ai-detail">AI Detail</option>
-          <option value="ai-summary">AI Summary</option>
-          <option value="ai-diff">AI Diff</option>
-          <option value="raw-referenced">Raw Referenced</option>
-          <option value="raw-full">Raw Full</option>
-        </select>
-      </div>
       <section class="stats">
+        <div class="section-title">Current Selection</div>
         <div class="stat">
           <div class="label">Nodes</div>
           <div class="value" id="nodes">0</div>
@@ -174,11 +172,15 @@
           <div class="value" id="changed">0</div>
         </div>
       </section>
+      <section id="agent-sync" class="stat">
+        <div class="section-title">Agent Sync</div>
+        <div class="label">Summary syncs automatically. Agents can lazy-load node detail through MCP.</div>
+      </section>
       <div class="bar"><span id="progress"></span></div>
       <p id="status"></p>
       <div class="row">
-        <button class="primary" id="download">Download JSON</button>
-        <button id="copy">Copy JSON</button>
+        <button class="primary" id="download">Download AI JSON</button>
+        <button id="copy">Copy AI JSON</button>
       </div>
     </main>
     <script>
@@ -186,7 +188,6 @@
       let pluginMessageReceived = false;
       let uiReadyTimer = null;
       const panel = document.getElementById("panel");
-      const profile = document.getElementById("profile");
       const status = document.getElementById("status");
       const progress = document.getElementById("progress");
       const nodes = document.getElementById("nodes");
@@ -439,7 +440,7 @@
         setProgress(35, "Serializing");
         post({
           type: "panel-export",
-          profile: profile.value,
+          profile: "ai-detail",
           action
         });
       }

@@ -5,7 +5,7 @@
 Phase 1 and Phase 2 are complete. Phase 3 extends the bridge from "latest summary/detail cache" to a practical MCP interface for AI coding agents.
 
 - Phase 1: mock HTTP push -> in-memory cache -> MCP tools.
-- Phase 2: Figma `Open Export Panel (MCP Debug)` -> heartbeat -> live summary push.
+- Phase 2: Figma `Open AI Agent Bridge` -> heartbeat -> live summary push.
 - Phase 3: diff cache, richer tools, MCP resources, MCP prompts, manual detail/diff push from the panel, and lazy node-detail requests from summary nodes.
 
 ## Runtime Flow
@@ -37,7 +37,7 @@ Server stdout is reserved for MCP JSON-RPC. Logs must go to stderr.
 
 ## Figma Plugin Push Rules
 
-Only `Open Export Panel (MCP Debug)` enables MCP sync.
+Only `Open AI Agent Bridge` enables MCP sync.
 
 - Heartbeat: UI posts `/api/heartbeat` immediately and every 15 seconds.
 - Automatic sync: `selectionchange` debounce pushes AI Summary only.

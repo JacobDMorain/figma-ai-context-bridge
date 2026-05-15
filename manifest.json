@@ -1,35 +1,23 @@
 {
-  "name": "Selection Style Exporter",
+  "name": "Figma AI Context Bridge",
   "id": "selection-style-exporter",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
   "menu": [
     {
-      "name": "Export Selection (AI Optimized)",
+      "name": "Export AI JSON",
       "command": "export-ai"
     },
     {
-      "name": "Export Selection (AI Summary)",
-      "command": "export-ai-summary"
-    },
-    {
-      "name": "Export Selection (Referenced Resources)",
-      "command": "export-referenced"
-    },
-    {
-      "name": "Export Selection (Full Resources)",
-      "command": "export-full"
-    },
-    {
-      "name": "Open Export Panel (MCP Debug)",
+      "name": "Open AI Agent Bridge",
       "command": "open-panel"
     }
   ],
-  "editorType": ["figma", "figjam"],
+  "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["http://localhost:7800"],
-    "reasoning": "Push selected Figma design data to the local MCP bridge server."
+    "reasoning": "Push selected Figma design context only to the local MCP bridge server for AI coding agents."
   }
 }

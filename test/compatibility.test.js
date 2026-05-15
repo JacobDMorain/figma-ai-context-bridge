@@ -34,14 +34,15 @@ test("plugin main code registers ui-ready handler before building export payload
   assert.doesNotMatch(source, /loadAllPagesAsync/);
 });
 
-test("manifest exposes AI optimized export command", () => {
+test("manifest exposes only release-ready AI agent commands", () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "manifest.json"), "utf8"));
   const commands = manifest.menu.map((item) => item.command);
 
-  assert.equal(commands.includes("export-ai"), true);
-  assert.equal(commands.includes("export-ai-summary"), true);
-  assert.equal(commands.includes("open-panel"), true);
-  assert.equal(manifest.menu.some((item) => item.name === "Open Export Panel (MCP Debug)"), true);
+  assert.equal(manifest.name, "Figma AI Context Bridge");
+  assert.deepEqual(commands, ["export-ai", "open-panel"]);
+  assert.equal(manifest.menu.some((item) => item.name === "Export AI JSON"), true);
+  assert.equal(manifest.menu.some((item) => item.name === "Open AI Agent Bridge"), true);
+  assert.equal(manifest.editorType.includes("figjam"), false);
 });
 
 test("manifest allows local MCP bridge network access", () => {
@@ -77,12 +78,21 @@ test("plugin allows empty selection only for open panel command", () => {
   assert.match(code, /figma\.command === "open-panel"/);
 });
 
-test("plugin UI bridges MCP push and heartbeat without download errors", () => {
+test("plugin UI presents release AI agent bridge without raw export profiles", () => {
   const ui = fs.readFileSync(path.join(__dirname, "..", "ui.html"), "utf8");
 
-  assert.match(ui, /mcp-diagnostics/);
+  assert.match(ui, /AI Agent Bridge/);
   assert.match(ui, /Connection/);
+  assert.match(ui, /Current Selection/);
+  assert.match(ui, /Agent Sync/);
   assert.match(ui, /Last Sync/);
+  assert.match(ui, /Copy AI JSON/);
+  assert.match(ui, /Download AI JSON/);
+  assert.doesNotMatch(ui, /MCP Diagnostics/);
+  assert.doesNotMatch(ui, /Raw Referenced/);
+  assert.doesNotMatch(ui, /Raw Full/);
+  assert.doesNotMatch(ui, /AI Summary/);
+  assert.doesNotMatch(ui, /AI Diff/);
   assert.doesNotMatch(ui, /Last Push/);
   assert.match(ui, /mcp-last-error/);
   assert.match(ui, /updateMcpDiagnostics/);
@@ -110,6 +120,18 @@ test("plugin UI bridges MCP push and heartbeat without download errors", () => {
   assert.match(ui, /connectionStatus/);
   assert.match(ui, /lastSyncStatus/);
   assert.doesNotMatch(ui, /mcp-push-summary[\s\S]*download-error/);
+});
+
+test("release documentation and scripts are present", () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "PRIVACY.md")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "CHANGELOG.md")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "mcp-server", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "scripts", "release-pack.js")), true);
+  assert.equal(packageJson.scripts.verify, "npm test && npm run check && cd mcp-server && npm test && npm run check");
+  assert.equal(packageJson.scripts["release:pack"], "node scripts/release-pack.js");
 });
 
 test("plugin runtime handles lazy MCP node detail requests serially", () => {

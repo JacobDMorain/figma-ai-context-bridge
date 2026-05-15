@@ -2,11 +2,13 @@
   "name": "figma-selection-style-exporter",
   "version": "1.0.0",
   "private": true,
-  "description": "Figma plugin that downloads selected nodes, descendants, and style data as JSON.",
+  "description": "Figma plugin and local MCP bridge for AI coding agents.",
   "scripts": {
     "build": "node scripts/build.js",
     "test": "npm run build && node --test test/*.test.js",
-    "check": "npm run build && node --check code.js"
+    "check": "npm run build && node --check code.js",
+    "verify": "npm test && npm run check && cd mcp-server && npm test && npm run check",
+    "release:pack": "node scripts/release-pack.js"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",

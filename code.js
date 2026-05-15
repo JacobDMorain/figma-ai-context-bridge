@@ -559,7 +559,7 @@ var SelectionStyleExporterBundle = (() => {
           const selectedNodes = Array.from(selection || []);
           const exportContext = createExportContext(options || {});
           const result = {
-            plugin: "Selection Style Exporter",
+            plugin: "Figma AI Context Bridge",
             exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
             selectionCount: selectedNodes.length,
             fileKey: options && options.fileKey ? options.fileKey : null,
