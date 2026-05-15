@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Selection Style Exporter</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font: 12px/1.45 Inter, Arial, sans-serif;
+        color: #1f2328;
+        background: #f7f8fa;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      #panel {
+        display: block;
+        padding: 16px;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      select,
+      button {
+        height: 30px;
+        border: 1px solid #c9cdd3;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #1f2328;
+      }
+
+      select {
+        flex: 1;
+        padding: 0 8px;
+      }
+
+      button {
+        padding: 0 10px;
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: #0b57d0;
+        background: #0b57d0;
+        color: #ffffff;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .stat {
+        border: 1px solid #d7dce2;
+        border-radius: 6px;
+        background: #ffffff;
+        padding: 8px;
+      }
+
+      .label {
+        color: #69707a;
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+
+      .value {
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .bar {
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #dfe3e8;
+      }
+
+      .bar span {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: #0b57d0;
+        transition: width 120ms ease;
+      }
+
+      #status {
+        min-height: 18px;
+        margin-top: 10px;
+        color: #69707a;
+      }
+
+      #mcp-diagnostics {
+        margin: 0 0 12px;
+        border: 1px solid #d7dce2;
+        border-radius: 6px;
+        background: #ffffff;
+        padding: 10px;
+      }
+
+      .diagnostics-title {
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+
+      .diagnostics-grid {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 4px 8px;
+        word-break: break-word;
+      }
+
+      .diagnostics-key {
+        color: #69707a;
+      }
+
+      .diagnostics-value {
+        color: #1f2328;
+      }
+
+      .diagnostics-error {
+        color: #b42318;
+      }
+    </style>
+  </head>
+  <body>
+    <main id="panel">
+      <section id="mcp-diagnostics">
+        <div class="diagnostics-title">MCP Diagnostics</div>
+        <div class="diagnostics-grid">
+          <div class="diagnostics-key">Connection</div>
+          <div class="diagnostics-value" id="mcp-connection">Waiting for config</div>
+          <div class="diagnostics-key">Server</div>
+          <div class="diagnostics-value" id="mcp-server">http://localhost:7800</div>
+          <div class="diagnostics-key">Session</div>
+          <div class="diagnostics-value" id="mcp-session">-</div>
+          <div class="diagnostics-key">Heartbeat</div>
+          <div class="diagnostics-value" id="mcp-heartbeat">-</div>
+          <div class="diagnostics-key">Last Sync</div>
+          <div class="diagnostics-value" id="mcp-last-sync">-</div>
+          <div class="diagnostics-key">Error</div>
+          <div class="diagnostics-value diagnostics-error" id="mcp-last-error">-</div>
+        </div>
+      </section>
+      <div class="row">
+        <select id="profile">
+          <option value="ai-detail">AI Detail</option>
+          <option value="ai-summary">AI Summary</option>
+          <option value="ai-diff">AI Diff</option>
+          <option value="raw-referenced">Raw Referenced</option>
+          <option value="raw-full">Raw Full</option>
+        </select>
+      </div>
+      <section class="stats">
+        <div class="stat">
+          <div class="label">Nodes</div>
+          <div class="value" id="nodes">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Tokens</div>
+          <div class="value" id="tokens">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Changed</div>
+          <div class="value" id="changed">0</div>
+        </div>
+      </section>
+      <div class="bar"><span id="progress"></span></div>
+      <p id="status"></p>
+      <div class="row">
+        <button class="primary" id="download">Download JSON</button>
+        <button id="copy">Copy JSON</button>
+      </div>
+    </main>
+    <script>
+      let downloaded = false;
+      let pluginMessageReceived = false;
+      let uiReadyTimer = null;
+      const panel = document.getElementById("panel");
+      const profile = document.getElementById("profile");
+      const status = document.getElementById("status");
+      const progress = document.getElementById("progress");
+      const nodes = document.getElementById("nodes");
+      const tokens = document.getElementById("tokens");
+      const changed = document.getElementById("changed");
+      const mcpConnectionText = document.getElementById("mcp-connection");
+      const mcpServerText = document.getElementById("mcp-server");
+      const mcpSessionText = document.getElementById("mcp-session");
+      const mcpHeartbeatText = document.getElementById("mcp-heartbeat");
+      const mcpLastSyncText = document.getElementById("mcp-last-sync");
+      const mcpLastErrorText = document.getElementById("mcp-last-error");
+      const mcpState = {
+        serverUrl: "http://localhost:7800",
+        online: false,
+        lastSync: null,
+        lastSyncType: "",
+        lastSyncStatus: "",
+        lastHeartbeat: null,
+        lastError: "",
+        connectionStatus: "Waiting for config",
+        heartbeatTimer: null,
+        config: null
+      };
+
+      function post(message) {
+        parent.postMessage({ pluginMessage: message }, "*");
+      }
+
+      function sendUiReady() {
+        post({ type: "ui-ready" });
+      }
+
+      function markPluginMessageReceived() {
+        pluginMessageReceived = true;
+        if (uiReadyTimer) {
+          clearInterval(uiReadyTimer);
+          uiReadyTimer = null;
+        }
+      }
+
+      function setProgress(value, text) {
+        progress.style.width = value + "%";
+        status.textContent = text || "";
+      }
+
+      function formatTime(value) {
+        if (!value) {
+          return "-";
+        }
+
+        try {
+          return new Date(value).toLocaleTimeString();
+        } catch (error) {
+          return "-";
+        }
+      }
+
+      function errorText(error) {
+        return error && error.message ? error.message : String(error || "");
+      }
+
+      function updateMcpDiagnostics() {
+        mcpConnectionText.textContent = mcpState.connectionStatus || (mcpState.online ? "Online" : "Offline");
+        mcpServerText.textContent = mcpState.serverUrl || "-";
+        mcpSessionText.textContent = mcpState.config && mcpState.config.sessionId ? mcpState.config.sessionId : "-";
+        mcpHeartbeatText.textContent = formatTime(mcpState.lastHeartbeat);
+        mcpLastSyncText.textContent = mcpState.lastSync ? (mcpState.lastSyncType ? mcpState.lastSyncType + " " : "") + formatTime(mcpState.lastSync) : (mcpState.lastSyncStatus || "-");
+        mcpLastErrorText.textContent = mcpState.lastError || "-";
+      }
+
+      async function pushToMcp(endpoint, body, pushType) {
+        const response = await fetch(mcpState.serverUrl + endpoint, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+          throw new Error("MCP HTTP " + response.status);
+        }
+
+        mcpState.online = true;
+        mcpState.lastError = "";
+        if (pushType && pushType !== "heartbeat") {
+          mcpState.lastSync = Date.now();
+          mcpState.lastSyncType = pushType;
+          mcpState.lastSyncStatus = pushType + " synced";
+        } else if (pushType === "heartbeat") {
+          mcpState.connectionStatus = "Heartbeat OK";
+        }
+        updateMcpDiagnostics();
+        return response.json();
+      }
+
+      async function checkMcpHealth() {
+        try {
+          const response = await fetch(mcpState.serverUrl + "/health");
+          mcpState.online = response.ok;
+          mcpState.connectionStatus = response.ok ? "Health check OK" : "Health check failed";
+          mcpState.lastError = response.ok ? "" : "HTTP " + response.status;
+          updateMcpDiagnostics();
+          return response.ok;
+        } catch (error) {
+          mcpState.online = false;
+          mcpState.connectionStatus = "Health check failed";
+          mcpState.lastError = errorText(error);
+          updateMcpDiagnostics();
+          return false;
+        }
+      }
+
+      async function sendHeartbeat() {
+        if (!mcpState.config) {
+          return;
+        }
+
+        try {
+          await pushToMcp("/api/heartbeat", {
+            fileKey: mcpState.config.fileKey,
+            pageId: mcpState.config.pageId,
+            sessionId: mcpState.config.sessionId,
+            pluginVersion: mcpState.config.pluginVersion
+          }, "heartbeat");
+          mcpState.lastHeartbeat = Date.now();
+          mcpState.connectionStatus = "Heartbeat OK";
+          mcpState.lastError = "";
+          updateMcpDiagnostics();
+          setProgress(0, "MCP connected");
+        } catch (error) {
+          mcpState.online = false;
+          mcpState.connectionStatus = "Heartbeat failed";
+          mcpState.lastError = errorText(error);
+          updateMcpDiagnostics();
+          await checkMcpHealth();
+          setProgress(0, "MCP offline");
+        }
+      }
+
+      function startHeartbeat(config) {
+        mcpState.config = config;
+        mcpState.serverUrl = config.serverUrl || mcpState.serverUrl;
+        mcpState.connectionStatus = "Config received";
+        mcpState.lastError = "";
+        updateMcpDiagnostics();
+        if (mcpState.heartbeatTimer) {
+          clearInterval(mcpState.heartbeatTimer);
+        }
+        sendHeartbeat();
+        mcpState.heartbeatTimer = setInterval(sendHeartbeat, 15000);
+      }
+
+      function downloadJson(message) {
+        if (downloaded && !document.body.classList.contains("panel-ready")) {
+          return;
+        }
+        downloaded = true;
+
+        try {
+          const json = JSON.stringify(message.payload, null, 2);
+          const blob = new Blob([json], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = message.filename || "figma-selection-export.json";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          setProgress(100, "Exported");
+          post({ type: "download-complete" });
+        } catch (error) {
+          post({
+            type: "download-error",
+            error: error && error.message ? error.message : String(error)
+          });
+        }
+      }
+
+      async function copyJson(message) {
+        try {
+          await navigator.clipboard.writeText(JSON.stringify(message.payload, null, 2));
+          setProgress(100, "Copied");
+          post({ type: "download-complete" });
+        } catch (error) {
+          post({
+            type: "download-error",
+            error: error && error.message ? error.message : String(error)
+          });
+        }
+      }
+
+      function requestExport(action) {
+        setProgress(35, "Serializing");
+        post({
+          type: "panel-export",
+          profile: profile.value,
+          action
+        });
+      }
+
+      document.getElementById("download").onclick = () => requestExport("download");
+      document.getElementById("copy").onclick = () => requestExport("copy");
+
+      window.onmessage = (event) => {
+        const message = event.data && event.data.pluginMessage;
+        if (!message) {
+          return;
+        }
+
+        markPluginMessageReceived();
+
+        if (message.type === "mcp-config") {
+          document.body.classList.add("panel-ready");
+          startHeartbeat(message);
+          return;
+        }
+
+        if (message.type === "mcp-push-summary") {
+          pushToMcp("/api/push/summary", message.body, "summary")
+            .then(() => setProgress(0, "MCP synced summary"))
+            .catch((error) => {
+              mcpState.online = false;
+              mcpState.lastSyncStatus = "Summary push failed";
+              mcpState.lastError = errorText(error);
+              updateMcpDiagnostics();
+              setProgress(0, "MCP offline");
+            });
+          return;
+        }
+
+        if (message.type === "mcp-sync-start") {
+          const syncMessage = message.message || (message.syncType === "summary" ? "Syncing summary" : "Syncing");
+          mcpState.lastSyncStatus = syncMessage;
+          mcpState.lastError = "";
+          updateMcpDiagnostics();
+          setProgress(message.syncType === "summary" ? 35 : 20, syncMessage);
+          return;
+        }
+
+        if (message.type === "mcp-push-selection") {
+          pushToMcp("/api/push/selection", message.body, "selection")
+            .then(() => setProgress(100, "Exported and synced detail"))
+            .catch((error) => {
+              mcpState.online = false;
+              mcpState.lastSyncStatus = "Detail push failed";
+              mcpState.lastError = errorText(error);
+              updateMcpDiagnostics();
+              setProgress(100, "Exported; MCP offline");
+            });
+          return;
+        }
+
+        if (message.type === "mcp-push-diff") {
+          pushToMcp("/api/push/diff", message.body, "diff")
+            .then(() => setProgress(100, "Exported and synced diff"))
+            .catch((error) => {
+              mcpState.online = false;
+              mcpState.lastSyncStatus = "Diff push failed";
+              mcpState.lastError = errorText(error);
+              updateMcpDiagnostics();
+              setProgress(100, "Exported; MCP offline");
+            });
+          return;
+        }
+
+        if (message.type === "mcp-status") {
+          mcpState.lastSyncStatus = message.message || "";
+          updateMcpDiagnostics();
+          setProgress(0, message.message || "");
+          return;
+        }
+
+        if (message.type === "download-json") {
+          downloadJson(message);
+          return;
+        }
+
+        if (message.type === "copy-json") {
+          copyJson(message);
+          return;
+        }
+
+        if (message.type === "panel-ready") {
+          document.body.classList.add("panel-ready");
+          const metadata = message.metadata || {};
+          nodes.textContent = String(metadata.nodeCount || 0);
+          tokens.textContent = String(metadata.estimatedTokens || 0);
+          changed.textContent = String(message.changedNodeCount || 0);
+          setProgress(0, "Ready");
+          return;
+        }
+
+        if (message.type === "panel-stats") {
+          changed.textContent = String(message.changedNodeCount || 0);
+          return;
+        }
+
+        if (message.type === "panel-error") {
+          setProgress(0, message.error || "Export failed");
+        }
+      };
+
+      sendUiReady();
+      uiReadyTimer = setInterval(sendUiReady, 500);
+      updateMcpDiagnostics();
+      setTimeout(() => {
+        if (!pluginMessageReceived && !downloaded) {
+          document.body.classList.add("panel-ready");
+          mcpState.connectionStatus = "Waiting for plugin messages";
+          updateMcpDiagnostics();
+          setProgress(0, "Waiting for plugin messages");
+        }
+      }, 800);
+    </script>
+  </body>
+</html>

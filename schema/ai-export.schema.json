@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://local.figma-selection-style-exporter/schemas/ai-export.schema.json",
+  "title": "Figma AI Export",
+  "type": "object",
+  "required": ["schemaVersion", "mode", "metadata"],
+  "properties": {
+    "schemaVersion": {
+      "const": "2.1.0"
+    },
+    "mode": {
+      "enum": ["ai-optimized", "ai-summary", "ai-diff"]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "designTokens": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "componentDefinitions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/node"
+      }
+    },
+    "changed": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/node"
+      }
+    },
+    "removed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unchangedCount": {
+      "type": "number"
+    },
+    "currentHashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "node": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "componentId": {
+          "type": "string"
+        },
+        "childCount": {
+          "type": "number"
+        },
+        "css": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "figma": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "positioning": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "hints": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "interactions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "text": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/node"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,21 @@
+{
+  "name": "figma-design-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local MCP bridge server for Figma selection design data.",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "test": "npm run build && node --test",
+    "check": "npm run build && node --check dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "esbuild": "^0.28.0",
+    "typescript": "^5.4.5"
+  }
+}
