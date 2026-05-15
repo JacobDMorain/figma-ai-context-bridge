@@ -97,15 +97,31 @@ test("plugin UI bridges MCP push and heartbeat without download errors", () => {
   assert.match(ui, /\/api\/push\/summary/);
   assert.match(ui, /\/api\/push\/selection/);
   assert.match(ui, /\/api\/push\/diff/);
+  assert.match(ui, /\/api\/requests/);
+  assert.match(ui, /\/api\/push\/node-detail/);
   assert.match(ui, /setInterval\([^,]+,\s*15000\)/);
   assert.match(ui, /mcp-push-summary/);
   assert.match(ui, /mcp-sync-start/);
   assert.match(ui, /Syncing summary/);
   assert.match(ui, /mcp-push-selection/);
   assert.match(ui, /mcp-push-diff/);
+  assert.match(ui, /mcp-push-node-detail/);
+  assert.match(ui, /mcp-detail-request/);
   assert.match(ui, /connectionStatus/);
   assert.match(ui, /lastSyncStatus/);
   assert.doesNotMatch(ui, /mcp-push-summary[\s\S]*download-error/);
+});
+
+test("plugin runtime handles lazy MCP node detail requests serially", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "exporter.ts"), "utf8");
+
+  assert.match(source, /mcp-detail-request/);
+  assert.match(source, /mcp-push-node-detail/);
+  assert.match(source, /getNodeByIdAsync/);
+  assert.match(source, /detailRequestQueue/);
+  assert.match(source, /processNextDetailRequest/);
+  assert.match(source, /serializeSelectionForAi\(\[node\]/);
+  assert.doesNotMatch(source, /loadAllPagesAsync/);
 });
 
 test("panel mode keeps UI open when preview export fails", () => {

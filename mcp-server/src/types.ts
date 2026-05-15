@@ -40,4 +40,19 @@ export interface CacheStatus {
   hasSummary: boolean;
   hasSelection: boolean;
   hasDiff: boolean;
+  hasNodeDetails: boolean;
+  pendingDetailCount: number;
+}
+
+export type NodeDetailScope = "subtree";
+
+export interface NodeDetailRequest {
+  requestId: string;
+  type: "node-detail";
+  nodeId: string;
+  scope: NodeDetailScope;
+  status: "pending" | "fulfilled" | "error";
+  createdAt: number;
+  updatedAt: number;
+  error?: string;
 }

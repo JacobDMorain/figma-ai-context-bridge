@@ -84,7 +84,10 @@ export function createMcpServer(cache: DesignCache): McpServer {
       ...QueryShape,
       nodeId: z.string(),
       includeChildren: z.boolean().optional(),
-      source: z.enum(["auto", "selection", "summary"]).optional()
+      source: z.enum(["auto", "selection", "summary"]).optional(),
+      detail: z.enum(["auto", "summary-only"]).optional(),
+      scope: z.enum(["subtree"]).optional(),
+      waitMs: z.number().optional()
     }
   }, async (args) => tools.getDesignNode(args));
 

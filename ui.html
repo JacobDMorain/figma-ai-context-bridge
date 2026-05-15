@@ -208,6 +208,8 @@
         lastError: "",
         connectionStatus: "Waiting for config",
         heartbeatTimer: null,
+        requestTimer: null,
+        inFlightRequests: {},
         config: null
       };
 
@@ -327,6 +329,58 @@
         }
       }
 
+      function requestQueryString() {
+        if (!mcpState.config) {
+          return "";
+        }
+        const params = new URLSearchParams();
+        params.set("fileKey", mcpState.config.fileKey);
+        params.set("pageId", mcpState.config.pageId);
+        params.set("sessionId", mcpState.config.sessionId);
+        return params.toString();
+      }
+
+      async function pollMcpRequests() {
+        if (!mcpState.config) {
+          return;
+        }
+
+        try {
+          const query = requestQueryString();
+          const response = await fetch(mcpState.serverUrl + "/api/requests?" + query);
+          if (!response.ok) {
+            throw new Error("MCP HTTP " + response.status);
+          }
+          const body = await response.json();
+          const requests = Array.isArray(body.requests) ? body.requests : [];
+          requests.forEach((request) => {
+            if (!request || request.type !== "node-detail" || !request.requestId || mcpState.inFlightRequests[request.requestId]) {
+              return;
+            }
+            mcpState.inFlightRequests[request.requestId] = true;
+            mcpState.lastSyncStatus = "Syncing node detail";
+            updateMcpDiagnostics();
+            setProgress(20, "Syncing node detail");
+            post({
+              type: "mcp-detail-request",
+              request
+            });
+          });
+        } catch (error) {
+          mcpState.online = false;
+          mcpState.lastError = errorText(error);
+          updateMcpDiagnostics();
+        }
+      }
+
+      function startRequestPolling() {
+        if (mcpState.requestTimer) {
+          clearInterval(mcpState.requestTimer);
+        }
+        pollMcpRequests();
+        mcpState.requestTimer = setInterval(pollMcpRequests, 1000);
+      }
+
       function startHeartbeat(config) {
         mcpState.config = config;
         mcpState.serverUrl = config.serverUrl || mcpState.serverUrl;
@@ -338,6 +392,7 @@
         }
         sendHeartbeat();
         mcpState.heartbeatTimer = setInterval(sendHeartbeat, 15000);
+        startRequestPolling();
       }
 
       function downloadJson(message) {
@@ -450,6 +505,27 @@
               mcpState.lastError = errorText(error);
               updateMcpDiagnostics();
               setProgress(100, "Exported; MCP offline");
+            });
+          return;
+        }
+
+        if (message.type === "mcp-push-node-detail") {
+          pushToMcp("/api/push/node-detail", message.body, "node-detail")
+            .then(() => {
+              if (message.body && message.body.requestId) {
+                delete mcpState.inFlightRequests[message.body.requestId];
+              }
+              setProgress(100, "Synced node detail");
+            })
+            .catch((error) => {
+              if (message.body && message.body.requestId) {
+                delete mcpState.inFlightRequests[message.body.requestId];
+              }
+              mcpState.online = false;
+              mcpState.lastSyncStatus = "Node detail push failed";
+              mcpState.lastError = errorText(error);
+              updateMcpDiagnostics();
+              setProgress(0, "MCP offline");
             });
           return;
         }

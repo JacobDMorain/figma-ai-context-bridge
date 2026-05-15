@@ -17,6 +17,9 @@ interface HttpServerHandle {
 interface PushBody extends Partial<CacheKey> {
   payload?: unknown;
   pluginVersion?: string;
+  requestId?: string;
+  nodeId?: string;
+  error?: string;
 }
 
 function isAllowedOrigin(origin: string | undefined): boolean {
@@ -94,7 +97,34 @@ export function createHttpServer(options: HttpServerOptions): HttpServerHandle {
         return;
       }
 
-      if (request.method === "POST" && ["/api/push/summary", "/api/push/selection", "/api/push/diff", "/api/heartbeat"].includes(url.pathname)) {
+      if (request.method === "GET" && url.pathname === "/api/requests") {
+        const query: Partial<CacheKey> = {};
+        const fileKey = url.searchParams.get("fileKey");
+        const pageId = url.searchParams.get("pageId");
+        const sessionId = url.searchParams.get("sessionId");
+        if (fileKey) {
+          query.fileKey = fileKey;
+        }
+        if (pageId) {
+          query.pageId = pageId;
+        }
+        if (sessionId) {
+          query.sessionId = sessionId;
+        }
+        writeJson(response, 200, {
+          ok: true,
+          requests: options.cache.getPendingDetailRequests(query).map((detailRequest) => ({
+            requestId: detailRequest.requestId,
+            type: detailRequest.type,
+            nodeId: detailRequest.nodeId,
+            scope: detailRequest.scope,
+            createdAt: detailRequest.createdAt
+          }))
+        });
+        return;
+      }
+
+      if (request.method === "POST" && ["/api/push/summary", "/api/push/selection", "/api/push/diff", "/api/push/node-detail", "/api/heartbeat"].includes(url.pathname)) {
         const body = await readJson(request);
         const key = keyFromBody(body);
         if (!key) {
@@ -108,6 +138,16 @@ export function createHttpServer(options: HttpServerOptions): HttpServerHandle {
           options.cache.putSelection(key, body.payload);
         } else if (url.pathname === "/api/push/diff") {
           options.cache.putDiff(key, body.payload);
+        } else if (url.pathname === "/api/push/node-detail") {
+          if (!body.requestId || !body.nodeId) {
+            writeJson(response, 400, { ok: false, error: "requestId and nodeId are required" });
+            return;
+          }
+          if (body.error) {
+            options.cache.failNodeDetailRequest(key, body.requestId, body.nodeId, body.error);
+          } else {
+            options.cache.fulfillNodeDetailRequest(key, body.requestId, body.nodeId, body.payload);
+          }
         } else {
           options.cache.heartbeat({
             ...key,

@@ -6,7 +6,7 @@ Phase 1 and Phase 2 are complete. Phase 3 extends the bridge from "latest summar
 
 - Phase 1: mock HTTP push -> in-memory cache -> MCP tools.
 - Phase 2: Figma `Open Export Panel (MCP Debug)` -> heartbeat -> live summary push.
-- Phase 3: diff cache, richer tools, MCP resources, MCP prompts, and manual detail/diff push from the panel.
+- Phase 3: diff cache, richer tools, MCP resources, MCP prompts, manual detail/diff push from the panel, and lazy node-detail requests from summary nodes.
 
 ## Runtime Flow
 
@@ -40,9 +40,10 @@ Server stdout is reserved for MCP JSON-RPC. Logs must go to stderr.
 Only `Open Export Panel (MCP Debug)` enables MCP sync.
 
 - Heartbeat: UI posts `/api/heartbeat` immediately and every 15 seconds.
-- Automatic sync: `selectionchange` / `documentchange` debounce pushes AI Summary only.
+- Automatic sync: `selectionchange` debounce pushes AI Summary only.
 - Manual AI Detail export: Download or Copy also pushes `/api/push/selection`.
 - Manual AI Diff export: Download or Copy also pushes `/api/push/diff`.
+- Lazy node detail: when an agent calls `get_design_node` for a summary-only node, the server queues a node-detail request. The panel polls `/api/requests`, serializes that node subtree, and pushes `/api/push/node-detail`.
 - Direct menu exports still download only and do not sync to MCP.
 - Push failures are non-fatal: the panel shows offline/error state but download/copy still works.
 
@@ -57,6 +58,8 @@ All push endpoints require `fileKey`, `pageId`, and `sessionId`.
 | `/api/push/summary` | POST | Stores latest AI Summary payload. |
 | `/api/push/selection` | POST | Stores latest AI Detail payload. |
 | `/api/push/diff` | POST | Stores latest AI Diff payload. |
+| `/api/requests` | GET | Returns pending lazy node-detail requests for the current session. |
+| `/api/push/node-detail` | POST | Stores a fulfilled node subtree detail payload or request error. |
 
 Allowed origins:
 
@@ -80,6 +83,8 @@ Data entries:
 - `summary`: latest AI Summary, TTL 5 minutes.
 - `selection`: latest AI Detail, TTL 5 minutes.
 - `diff`: latest AI Diff, TTL 5 minutes.
+- `nodeDetails`: per-node AI Detail payloads produced by lazy loading, TTL 5 minutes.
+- `detailRequests`: pending/fulfilled/error lazy node-detail requests, TTL 30 seconds.
 - `connection`: heartbeat state, connected when last heartbeat is within 30 seconds.
 
 When no explicit key is passed to a tool, the cache returns the most recently active session.
@@ -89,7 +94,7 @@ When no explicit key is passed to a tool, the cache returns the most recently ac
 The server exposes these tools:
 
 - `get_connection_status`
-  - Reports freshness, active file/page/session, plugin version, `hasSummary`, `hasSelection`, and `hasDiff`.
+  - Reports freshness, active file/page/session, plugin version, `hasSummary`, `hasSelection`, `hasDiff`, `hasNodeDetails`, and `pendingDetailCount`.
 - `get_design_summary`
   - Returns latest AI Summary.
 - `get_design_selection`
@@ -101,7 +106,9 @@ The server exposes these tools:
 - `get_component_definitions`
   - Reads all component definitions or one `componentId`.
 - `get_design_node`
-  - Looks up a node by id from detail or summary. `includeChildren` controls full subtree vs child skeleton.
+  - Looks up a node by id from full selection detail, lazy node detail, or summary.
+  - If only summary is available and the panel is connected, it queues a lazy node-detail request and waits up to `waitMs` (default 10 seconds, max 15 seconds).
+  - Supports `detail: "summary-only"` to bypass lazy loading and return the summary skeleton immediately.
 - `search_nodes`
   - Searches id, name, type, component id, text characters, and `hints.htmlTag`.
 
@@ -137,7 +144,8 @@ Recommended flow:
 
 1. Call `get_connection_status`.
 2. If connected and `hasSummary`, call `get_design_summary`.
-3. Use `search_nodes` or `get_design_node` for targeted detail.
-4. If manual AI Detail was pushed, call `get_design_selection`, `get_design_tokens`, and `get_component_definitions`.
-5. If manual AI Diff was pushed, call `get_design_diff`.
-6. If data is missing or stale, ask the user to open the Figma panel and push the needed profile.
+3. Use `search_nodes` to find target node ids.
+4. Call `get_design_node({ nodeId })`; if only summary exists, the tool requests lazy node detail from the open Figma panel and returns it when ready.
+5. If manual AI Detail was pushed, call `get_design_selection`, `get_design_tokens`, and `get_component_definitions` for full-selection context.
+6. If manual AI Diff was pushed, call `get_design_diff`.
+7. If data is missing or stale, ask the user to open the Figma panel and switch selection once.

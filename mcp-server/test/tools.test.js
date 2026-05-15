@@ -128,6 +128,76 @@ test("tools read tokens components nodes and search pushed design data", async (
   assert.equal(typeSearch.results[0].textPreview, "Submit order");
 });
 
+test("get_design_node prefers full selection and node detail cache before summary", async () => {
+  const cache = new DesignCache({ now: () => 1000 });
+  const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+  const tools = createToolHandlers(cache);
+
+  cache.putSummary(key, { mode: "ai-summary", nodes: [{ id: "1:1", name: "Summary", type: "FRAME" }] });
+  cache.putNodeDetail(key, "1:1", { mode: "ai-optimized", nodes: [{ id: "1:1", name: "Node Detail", css: { display: "flex" } }] });
+  assert.equal(parseToolResult(await tools.getDesignNode({ ...key, nodeId: "1:1" })).source, "node-detail");
+
+  cache.putSelection(key, { mode: "ai-optimized", nodes: [{ id: "1:1", name: "Full Selection", css: { display: "grid" } }] });
+  const result = parseToolResult(await tools.getDesignNode({ ...key, nodeId: "1:1" }));
+  assert.equal(result.source, "selection");
+  assert.equal(result.data.name, "Full Selection");
+});
+
+test("get_design_node creates lazy detail request and waits for fulfillment", async () => {
+  let now = 1000;
+  const cache = new DesignCache({ now: () => now, heartbeatTtlMs: 30000 });
+  const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+  const tools = createToolHandlers(cache);
+  cache.putSummary(key, { mode: "ai-summary", nodes: [{ id: "1:2", name: "Summary Node", type: "FRAME" }] });
+  cache.heartbeat({ ...key, pluginVersion: "1.0.0" });
+
+  const promise = tools.getDesignNode({ ...key, nodeId: "1:2", waitMs: 200 });
+  const request = cache.getPendingDetailRequests(key)[0];
+  assert.equal(request.nodeId, "1:2");
+
+  setTimeout(() => {
+    cache.fulfillNodeDetailRequest(key, request.requestId, "1:2", {
+      mode: "ai-optimized",
+      nodes: [{ id: "1:2", name: "Lazy Detail", css: { display: "flex" } }]
+    });
+  }, 20);
+
+  const result = parseToolResult(await promise);
+  assert.equal(result.ok, true);
+  assert.equal(result.source, "node-detail");
+  assert.equal(result.data.name, "Lazy Detail");
+});
+
+test("get_design_node returns pending on lazy detail timeout and supports summary-only mode", async () => {
+  const cache = new DesignCache({ now: () => 1000, heartbeatTtlMs: 30000 });
+  const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+  const tools = createToolHandlers(cache);
+  cache.putSummary(key, { mode: "ai-summary", nodes: [{ id: "1:2", name: "Summary Node", type: "FRAME" }] });
+  cache.heartbeat({ ...key, pluginVersion: "1.0.0" });
+
+  const pending = parseToolResult(await tools.getDesignNode({ ...key, nodeId: "1:2", waitMs: 1 }));
+  assert.equal(pending.ok, false);
+  assert.equal(pending.status, "pending");
+  assert.match(pending.requestId, /^detail-/);
+
+  const summaryOnly = parseToolResult(await tools.getDesignNode({ ...key, nodeId: "1:2", detail: "summary-only" }));
+  assert.equal(summaryOnly.ok, true);
+  assert.equal(summaryOnly.source, "summary");
+  assert.equal(summaryOnly.data.name, "Summary Node");
+});
+
+test("get_design_node returns summary skeleton without waiting when plugin is disconnected", async () => {
+  const cache = new DesignCache({ now: () => 1000, heartbeatTtlMs: 30000 });
+  const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+  const tools = createToolHandlers(cache);
+  cache.putSummary(key, { mode: "ai-summary", nodes: [{ id: "1:2", name: "Summary Node", type: "FRAME" }] });
+
+  const result = parseToolResult(await tools.getDesignNode({ ...key, nodeId: "1:2" }));
+  assert.equal(result.ok, true);
+  assert.equal(result.source, "summary");
+  assert.deepEqual(cache.getPendingDetailRequests(key), []);
+});
+
 test("connection status reports fresh and stale heartbeat", async () => {
   let now = 1000;
   const cache = new DesignCache({ now: () => now, heartbeatTtlMs: 30000 });

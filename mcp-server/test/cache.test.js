@@ -73,6 +73,48 @@ test("cache status reports diff availability and latest push time", () => {
   assert.equal(status.lastPushAt, 2000);
 });
 
+test("cache stores node detail requests and fulfilled detail payloads", () => {
+  let now = 1000;
+  const cache = new DesignCache({ now: () => now, requestTtlMs: 30000 });
+  const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+
+  const request = cache.createNodeDetailRequest(key, "1:2", "subtree");
+  const duplicate = cache.createNodeDetailRequest(key, "1:2", "subtree");
+  assert.equal(duplicate.requestId, request.requestId);
+  assert.equal(cache.getPendingDetailRequests(key).length, 1);
+
+  const detail = { mode: "ai-optimized", nodes: [{ id: "1:2", css: { display: "flex" } }] };
+  cache.fulfillNodeDetailRequest(key, request.requestId, "1:2", detail);
+
+  assert.deepEqual(cache.getNodeDetail(key, "1:2"), detail);
+  assert.equal(cache.getPendingDetailRequests(key).length, 0);
+  assert.equal(cache.getNodeDetailRequest(key, request.requestId).status, "fulfilled");
+  assert.equal(cache.getStatus(key).hasNodeDetails, true);
+  assert.equal(cache.getStatus(key).pendingDetailCount, 0);
+
+  now = 1000 + 300001;
+  assert.equal(cache.getNodeDetail(key, "1:2"), null);
+});
+
+test("cache expires pending node detail requests and preserves request errors", () => {
+  let now = 1000;
+  const cache = new DesignCache({ now: () => now, requestTtlMs: 30000 });
+  const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+
+  const expired = cache.createNodeDetailRequest(key, "1:2", "subtree");
+  now = 1000 + 30001;
+  assert.deepEqual(cache.getPendingDetailRequests(key), []);
+  assert.equal(cache.getNodeDetailRequest(key, expired.requestId), null);
+
+  now = 40000;
+  const failed = cache.createNodeDetailRequest(key, "1:3", "subtree");
+  cache.failNodeDetailRequest(key, failed.requestId, "1:3", "Node not found");
+
+  const record = cache.getNodeDetailRequest(key, failed.requestId);
+  assert.equal(record.status, "error");
+  assert.equal(record.error, "Node not found");
+});
+
 test("cache connection status follows heartbeat freshness", () => {
   let now = 1000;
   const cache = new DesignCache({ now: () => now, heartbeatTtlMs: 30000 });

@@ -1831,6 +1831,9 @@
     const mcpSessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     const changedNodeIds = {};
     let mcpDebounceTimer = null;
+    const detailRequestQueue = [];
+    const queuedDetailRequestIds = {};
+    let processingDetailRequest = false;
     let uiReady = false;
     let downloadPosted = false;
     let downloadMessage = null;
@@ -1899,6 +1902,18 @@
         pageId: figma.currentPage.id,
         sessionId: mcpSessionId,
         payload
+      };
+    }
+
+    function buildMcpNodeDetailEnvelope(request, payload, error) {
+      return {
+        fileKey: figma.fileKey || "local",
+        pageId: figma.currentPage.id,
+        sessionId: mcpSessionId,
+        requestId: request && request.requestId,
+        nodeId: request && request.nodeId,
+        payload,
+        error
       };
     }
 
@@ -2054,6 +2069,70 @@
       };
     }
 
+    async function buildNodeDetailPayload(node) {
+      const options = await buildExportOptions("ai-detail");
+      return await exporter.serializeSelectionForAi([node], options);
+    }
+
+    async function processNextDetailRequest() {
+      if (processingDetailRequest || !detailRequestQueue.length) {
+        return;
+      }
+
+      processingDetailRequest = true;
+      const request = detailRequestQueue.shift();
+      if (request && request.requestId) {
+        delete queuedDetailRequestIds[request.requestId];
+      }
+
+      try {
+        if (!request || !request.requestId || !request.nodeId) {
+          throw new Error("Invalid node detail request");
+        }
+
+        figma.ui.postMessage({
+          type: "mcp-sync-start",
+          syncType: "node-detail",
+          message: "Syncing node detail"
+        });
+
+        const node = typeof figma.getNodeByIdAsync === "function"
+          ? await figma.getNodeByIdAsync(request.nodeId)
+          : null;
+        if (!node) {
+          figma.ui.postMessage({
+            type: "mcp-push-node-detail",
+            body: buildMcpNodeDetailEnvelope(request, undefined, `Node not found: ${request.nodeId}`)
+          });
+          return;
+        }
+
+        const payload = await buildNodeDetailPayload(node);
+        figma.ui.postMessage({
+          type: "mcp-push-node-detail",
+          body: buildMcpNodeDetailEnvelope(request, payload, undefined)
+        });
+      } catch (error) {
+        figma.ui.postMessage({
+          type: "mcp-push-node-detail",
+          body: buildMcpNodeDetailEnvelope(request, undefined, error instanceof Error ? error.message : String(error))
+        });
+      } finally {
+        processingDetailRequest = false;
+        setTimeout(processNextDetailRequest, 0);
+      }
+    }
+
+    function enqueueDetailRequest(request) {
+      if (!request || !request.requestId || queuedDetailRequestIds[request.requestId]) {
+        return;
+      }
+
+      queuedDetailRequestIds[request.requestId] = true;
+      detailRequestQueue.push(request);
+      processNextDetailRequest();
+    }
+
     figma.ui.onmessage = (message) => {
       if (message && message.type === "ui-ready") {
         uiReady = true;
@@ -2093,6 +2172,11 @@
             });
           }
         }());
+        return;
+      }
+
+      if (message && message.type === "mcp-detail-request") {
+        enqueueDetailRequest(message.request);
         return;
       }
 

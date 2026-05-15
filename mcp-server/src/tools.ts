@@ -1,5 +1,5 @@
 import type { DesignCache } from "./cache.js";
-import type { CacheQuery } from "./types.js";
+import type { CacheKey, CacheQuery, NodeDetailScope } from "./types.js";
 
 const EMPTY_MESSAGE = "Open Export Panel in Figma and push a selection first.";
 
@@ -26,6 +26,9 @@ interface NodeQuery extends CacheQuery {
   nodeId: string;
   includeChildren?: boolean;
   source?: "auto" | "selection" | "summary";
+  detail?: "auto" | "summary-only";
+  scope?: NodeDetailScope;
+  waitMs?: number;
 }
 
 interface SearchQuery extends CacheQuery {
@@ -236,6 +239,29 @@ function searchResult(item: FlattenedNode): Record<string, unknown> {
   };
 }
 
+function queryToKey(status: ReturnType<DesignCache["getStatus"]>): CacheKey | null {
+  if (!status.activeFileKey || !status.activePageId || !status.activeSessionId) {
+    return null;
+  }
+  return {
+    fileKey: status.activeFileKey,
+    pageId: status.activePageId,
+    sessionId: status.activeSessionId
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function findNodeInPayload(payload: unknown, nodeId: string): FlattenedNode | null {
+  const designPayload = asPayload(payload);
+  if (!designPayload || !Array.isArray(designPayload.nodes)) {
+    return null;
+  }
+  return flattenNodes(designPayload.nodes).find((item) => item.node.id === nodeId) || null;
+}
+
 export function createToolHandlers(cache: DesignCache) {
   return {
     async getConnectionStatus(query: CacheQuery = {}): Promise<ToolResult> {
@@ -308,26 +334,100 @@ export function createToolHandlers(cache: DesignCache) {
     },
 
     async getDesignNode(query: NodeQuery): Promise<ToolResult> {
-      const { data, source } = getPayloadBySource(cache, query);
-      const payload = asPayload(data);
-      if (!payload || !Array.isArray(payload.nodes)) {
-        return emptyResult();
+      if (query.source !== "summary" && query.detail !== "summary-only") {
+        const selectionMatch = findNodeInPayload(cache.getSelection(query), query.nodeId);
+        if (selectionMatch) {
+          return jsonResult({
+            ok: true,
+            source: "selection",
+            path: selectionMatch.path,
+            pathString: selectionMatch.pathString,
+            data: query.includeChildren ? selectionMatch.node : cloneNodeWithoutDescendants(selectionMatch.node)
+          });
+        }
+
+        const detailMatch = findNodeInPayload(cache.getNodeDetail(query, query.nodeId), query.nodeId);
+        if (detailMatch) {
+          return jsonResult({
+            ok: true,
+            source: "node-detail",
+            path: detailMatch.path,
+            pathString: detailMatch.pathString,
+            data: query.includeChildren ? detailMatch.node : cloneNodeWithoutDescendants(detailMatch.node)
+          });
+        }
       }
-      const flattened = flattenNodes(payload.nodes);
-      const match = flattened.find((item) => item.node.id === query.nodeId);
-      if (!match) {
+
+      const summaryMatch = findNodeInPayload(cache.getSummary(query), query.nodeId);
+      if (!summaryMatch) {
         return jsonResult({
           ok: false,
           message: `Node not found: ${query.nodeId}`
         });
       }
 
+      if (query.detail === "summary-only" || query.source === "summary") {
+        return jsonResult({
+          ok: true,
+          source: "summary",
+          path: summaryMatch.path,
+          pathString: summaryMatch.pathString,
+          data: query.includeChildren ? summaryMatch.node : cloneNodeWithoutDescendants(summaryMatch.node)
+        });
+      }
+
+      const status = cache.getStatus(query);
+      const key = queryToKey(status);
+      if (!status.connected || !key) {
+        return jsonResult({
+          ok: true,
+          source: "summary",
+          path: summaryMatch.path,
+          pathString: summaryMatch.pathString,
+          data: query.includeChildren ? summaryMatch.node : cloneNodeWithoutDescendants(summaryMatch.node)
+        });
+      }
+
+      const scope = query.scope || "subtree";
+      const request = cache.createNodeDetailRequest(key, query.nodeId, scope);
+      const waitMs = Math.min(Math.max(typeof query.waitMs === "number" ? query.waitMs : 10000, 0), 15000);
+      const deadline = Date.now() + waitMs;
+
+      while (Date.now() <= deadline) {
+        const detailMatch = findNodeInPayload(cache.getNodeDetail(key, query.nodeId), query.nodeId);
+        if (detailMatch) {
+          return jsonResult({
+            ok: true,
+            source: "node-detail",
+            path: detailMatch.path,
+            pathString: detailMatch.pathString,
+            data: query.includeChildren ? detailMatch.node : cloneNodeWithoutDescendants(detailMatch.node)
+          });
+        }
+
+        const currentRequest = cache.getNodeDetailRequest(key, request.requestId);
+        if (currentRequest?.status === "error") {
+          return jsonResult({
+            ok: false,
+            status: "error",
+            requestId: request.requestId,
+            message: currentRequest.error || `Node detail failed: ${query.nodeId}`
+          });
+        }
+
+        if (waitMs === 0) {
+          break;
+        }
+        await sleep(Math.min(50, Math.max(1, deadline - Date.now())));
+      }
+
       return jsonResult({
-        ok: true,
-        source,
-        path: match.path,
-        pathString: match.pathString,
-        data: query.includeChildren ? match.node : cloneNodeWithoutDescendants(match.node)
+        ok: false,
+        status: "pending",
+        requestId: request.requestId,
+        nodeId: query.nodeId,
+        scope,
+        message: "Node detail request is pending. Keep the Figma export panel open and call get_design_node again."
       });
     },
 

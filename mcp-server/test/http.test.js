@@ -104,6 +104,64 @@ test("POST summary selection diff and heartbeat update cache", async () => {
   });
 });
 
+test("GET requests and POST node-detail support lazy node detail sync", async () => {
+  await withServer(async ({ baseUrl, cache }) => {
+    const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+    const request = cache.createNodeDetailRequest(key, "1:2", "subtree");
+
+    const requestsResponse = await fetch(`${baseUrl}/api/requests?fileKey=file-a&pageId=page-a&sessionId=session-a`);
+    const requestsBody = await requestsResponse.json();
+    assert.equal(requestsResponse.status, 200);
+    assert.deepEqual(requestsBody.requests, [{
+      requestId: request.requestId,
+      type: "node-detail",
+      nodeId: "1:2",
+      scope: "subtree",
+      createdAt: request.createdAt
+    }]);
+
+    const detail = { mode: "ai-optimized", nodes: [{ id: "1:2", name: "Lazy Detail" }] };
+    const pushResponse = await fetch(`${baseUrl}/api/push/node-detail`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...key, requestId: request.requestId, nodeId: "1:2", payload: detail })
+    });
+
+    assert.equal(pushResponse.status, 200);
+    assert.deepEqual(cache.getNodeDetail(key, "1:2"), detail);
+    assert.deepEqual(cache.getPendingDetailRequests(key), []);
+  });
+});
+
+test("POST node-detail error completes lazy request without payload", async () => {
+  await withServer(async ({ baseUrl, cache }) => {
+    const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+    const request = cache.createNodeDetailRequest(key, "missing", "subtree");
+
+    const response = await fetch(`${baseUrl}/api/push/node-detail`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...key, requestId: request.requestId, nodeId: "missing", error: "Node not found" })
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(cache.getNodeDetail(key, "missing"), null);
+    assert.equal(cache.getNodeDetailRequest(key, request.requestId).status, "error");
+  });
+});
+
+test("POST node-detail missing request fields returns 400", async () => {
+  await withServer(async ({ baseUrl }) => {
+    const response = await fetch(`${baseUrl}/api/push/node-detail`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ fileKey: "file-a", pageId: "page-a", sessionId: "session-a", nodeId: "1:1", payload: {} })
+    });
+
+    assert.equal(response.status, 400);
+  });
+});
+
 test("Phase 2 UI bridge body works with heartbeat summary and selection reads", async () => {
   await withServer(async ({ baseUrl, cache }) => {
     const envelope = {
