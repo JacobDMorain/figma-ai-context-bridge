@@ -1,5 +1,5 @@
 {
-  "name": "figma-selection-style-exporter",
+  "name": "figma-ai-context-bridge",
   "version": "1.0.0",
   "private": true,
   "description": "Figma plugin and local MCP bridge for AI coding agents.",
@@ -7,8 +7,12 @@
     "build": "node scripts/build.js",
     "test": "npm run build && node --test test/*.test.js",
     "check": "npm run build && node --check code.js",
-    "verify": "npm test && npm run check && cd mcp-server && npm test && npm run check",
-    "release:pack": "node scripts/release-pack.js"
+    "verify": "npm test && npm run check && npm run release:pack && npm run release:check && npm run release:mcp-pack && npm run release:mcp-check && cd mcp-server && npm test && npm run check",
+    "assets:render": "node scripts/render-community-assets.js",
+    "release:pack": "node scripts/release-pack.js",
+    "release:check": "node scripts/check-release-package.js",
+    "release:mcp-pack": "node scripts/release-mcp-pack.js",
+    "release:mcp-check": "node scripts/check-mcp-release-package.js"
   },
   "devDependencies": {
     "@types/node": "^20.12.12",

@@ -12,7 +12,12 @@ const files = [
   "README.md",
   "PRIVACY.md",
   "CHANGELOG.md",
-  "schema/ai-export.schema.json"
+  "schema/ai-export.schema.json",
+  "docs/community-listing.md",
+  "assets/community/icon.svg",
+  "assets/community/icon-128.png",
+  "assets/community/cover.svg",
+  "assets/community/cover-1920x1080.png"
 ];
 
 function copyFile(relativePath) {

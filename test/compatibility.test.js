@@ -1,7 +1,16 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
+
+function readPngSize(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  return {
+    width: buffer.readUInt32BE(16),
+    height: buffer.readUInt32BE(20)
+  };
+}
 
 test("plugin main code avoids object spread syntax unsupported by Figma parser", () => {
   const code = fs.readFileSync(path.join(__dirname, "..", "code.js"), "utf8");
@@ -124,14 +133,130 @@ test("plugin UI presents release AI agent bridge without raw export profiles", (
 
 test("release documentation and scripts are present", () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+  const packageLock = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package-lock.json"), "utf8"));
+  const mcpPackageJson = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "mcp-server", "package.json"), "utf8"));
+  const mcpPackageLock = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "mcp-server", "package-lock.json"), "utf8"));
+  const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
+  const mcpReadme = fs.readFileSync(path.join(__dirname, "..", "mcp-server", "README.md"), "utf8");
+  const releasePlan = fs.readFileSync(path.join(__dirname, "..", "RELEASE_READINESS_PLAN.md"), "utf8");
+  const versioning = fs.existsSync(path.join(__dirname, "..", "VERSIONING.md"))
+    ? fs.readFileSync(path.join(__dirname, "..", "VERSIONING.md"), "utf8")
+    : "";
+  const listing = fs.existsSync(path.join(__dirname, "..", "docs", "community-listing.md"))
+    ? fs.readFileSync(path.join(__dirname, "..", "docs", "community-listing.md"), "utf8")
+    : "";
 
   assert.equal(fs.existsSync(path.join(__dirname, "..", "README.md")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "VERSIONING.md")), true);
   assert.equal(fs.existsSync(path.join(__dirname, "..", "PRIVACY.md")), true);
   assert.equal(fs.existsSync(path.join(__dirname, "..", "CHANGELOG.md")), true);
   assert.equal(fs.existsSync(path.join(__dirname, "..", "mcp-server", "README.md")), true);
   assert.equal(fs.existsSync(path.join(__dirname, "..", "scripts", "release-pack.js")), true);
-  assert.equal(packageJson.scripts.verify, "npm test && npm run check && cd mcp-server && npm test && npm run check");
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "scripts", "check-release-package.js")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "scripts", "release-mcp-pack.js")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "scripts", "check-mcp-release-package.js")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "docs", "community-listing.md")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "assets", "community", "icon.svg")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "assets", "community", "icon-128.png")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "assets", "community", "cover.svg")), true);
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "assets", "community", "cover-1920x1080.png")), true);
+  assert.deepEqual(readPngSize(path.join(__dirname, "..", "assets", "community", "icon-128.png")), { width: 128, height: 128 });
+  assert.deepEqual(readPngSize(path.join(__dirname, "..", "assets", "community", "cover-1920x1080.png")), { width: 1920, height: 1080 });
+  assert.match(readme, /Codex/);
+  assert.match(readme, /Claude Code/);
+  assert.match(readme, /Cursor/);
+  assert.match(readme, /MCP server zip/);
+  assert.match(mcpReadme, /Codex/);
+  assert.match(mcpReadme, /Claude Code/);
+  assert.match(mcpReadme, /Cursor/);
+  assert.match(mcpReadme, /GitHub repository clone/);
+  assert.match(mcpReadme, /standalone MCP server package/);
+  assert.match(releasePlan, /Final Release Checklist/);
+  assert.match(releasePlan, /Figma Community/);
+  assert.match(versioning, /Semantic Versioning/);
+  assert.match(versioning, /AI JSON schema/);
+  assert.match(versioning, /MCP tools/);
+  assert.match(listing, /Figma AI Context Bridge/);
+  assert.match(listing, /AI-friendly JSON/);
+  assert.match(listing, /Local MCP Bridge/);
+  assert.equal(packageJson.name, "figma-ai-context-bridge");
+  assert.equal(packageLock.name, "figma-ai-context-bridge");
+  assert.equal(packageLock.packages[""].name, "figma-ai-context-bridge");
+  assert.equal(mcpPackageJson.name, "figma-ai-context-bridge-mcp-server");
+  assert.equal(mcpPackageJson.version, packageJson.version);
+  assert.equal(mcpPackageLock.name, "figma-ai-context-bridge-mcp-server");
+  assert.equal(mcpPackageLock.version, packageJson.version);
+  assert.equal(mcpPackageLock.packages[""].name, "figma-ai-context-bridge-mcp-server");
+  assert.equal(mcpPackageLock.packages[""].version, packageJson.version);
+  assert.equal(packageJson.scripts.verify, "npm test && npm run check && npm run release:pack && npm run release:check && npm run release:mcp-pack && npm run release:mcp-check && cd mcp-server && npm test && npm run check");
+  assert.equal(packageJson.scripts["assets:render"], "node scripts/render-community-assets.js");
   assert.equal(packageJson.scripts["release:pack"], "node scripts/release-pack.js");
+  assert.equal(packageJson.scripts["release:check"], "node scripts/check-release-package.js");
+  assert.equal(packageJson.scripts["release:mcp-pack"], "node scripts/release-mcp-pack.js");
+  assert.equal(packageJson.scripts["release:mcp-check"], "node scripts/check-mcp-release-package.js");
+});
+
+test("release package checker rejects forbidden files", () => {
+  const { checkReleasePackage } = require("../scripts/check-release-package.js");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "figma-release-check-"));
+  const packageDir = path.join(tempRoot, "package");
+
+  try {
+    fs.mkdirSync(path.join(packageDir, "schema"), { recursive: true });
+    [
+      "manifest.json",
+      "code.js",
+      "ui.html",
+      "README.md",
+      "PRIVACY.md",
+      "CHANGELOG.md",
+      "schema/ai-export.schema.json",
+      "docs/community-listing.md",
+      "assets/community/icon.svg",
+      "assets/community/icon-128.png",
+      "assets/community/cover.svg",
+      "assets/community/cover-1920x1080.png"
+    ].forEach((relativePath) => {
+      const filePath = path.join(packageDir, relativePath);
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, relativePath.endsWith(".json") ? "{}" : "ok");
+    });
+
+    assert.equal(checkReleasePackage(packageDir).ok, true);
+
+    fs.mkdirSync(path.join(packageDir, "node_modules"));
+    assert.throws(() => checkReleasePackage(packageDir), /forbidden entry: node_modules/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("MCP server release package checker rejects forbidden files", () => {
+  const { checkMcpReleasePackage } = require("../scripts/check-mcp-release-package.js");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "figma-mcp-release-check-"));
+  const packageDir = path.join(tempRoot, "package");
+
+  try {
+    [
+      "README.md",
+      "package.json",
+      "package-lock.json",
+      "scripts/build.js",
+      "src/index.ts",
+      "src/server.ts"
+    ].forEach((relativePath) => {
+      const filePath = path.join(packageDir, relativePath);
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, relativePath.endsWith(".json") ? "{}" : "ok");
+    });
+
+    assert.equal(checkMcpReleasePackage(packageDir).ok, true);
+
+    fs.mkdirSync(path.join(packageDir, "node_modules"));
+    assert.throws(() => checkMcpReleasePackage(packageDir), /forbidden entry: node_modules/);
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("plugin runtime handles lazy MCP node detail requests serially", () => {

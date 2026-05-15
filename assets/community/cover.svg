@@ -1,0 +1,24 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1920" height="1080" fill="#F8FAFC"/>
+  <rect x="120" y="120" width="1680" height="840" rx="36" fill="#111827"/>
+  <rect x="180" y="180" width="720" height="720" rx="28" fill="#FFFFFF"/>
+  <rect x="240" y="250" width="260" height="54" rx="12" fill="#DBEAFE"/>
+  <rect x="240" y="340" width="560" height="34" rx="10" fill="#E5E7EB"/>
+  <rect x="240" y="400" width="460" height="34" rx="10" fill="#E5E7EB"/>
+  <rect x="240" y="500" width="240" height="160" rx="18" fill="#10B981"/>
+  <rect x="520" y="500" width="280" height="160" rx="18" fill="#2563EB"/>
+  <rect x="240" y="710" width="560" height="70" rx="18" fill="#111827"/>
+  <text x="280" y="756" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">AI-friendly JSON</text>
+  <path d="M930 540H1110" stroke="#10B981" stroke-width="18" stroke-linecap="round"/>
+  <path d="M1072 494L1120 540L1072 586" stroke="#10B981" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="1160" y="250" width="520" height="580" rx="28" fill="#0F172A" stroke="#334155" stroke-width="4"/>
+  <rect x="1210" y="310" width="220" height="32" rx="8" fill="#2563EB"/>
+  <rect x="1210" y="380" width="390" height="26" rx="8" fill="#334155"/>
+  <rect x="1210" y="432" width="330" height="26" rx="8" fill="#334155"/>
+  <rect x="1210" y="484" width="420" height="26" rx="8" fill="#334155"/>
+  <rect x="1210" y="590" width="180" height="44" rx="12" fill="#10B981"/>
+  <rect x="1420" y="590" width="170" height="44" rx="12" fill="#2563EB"/>
+  <text x="1210" y="735" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="600">MCP Bridge</text>
+  <text x="180" y="1008" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800">Figma AI Context Bridge</text>
+  <text x="180" y="1060" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="500">Structured Figma context for Codex, Claude Code, Cursor, and other AI coding agents</text>
+</svg>

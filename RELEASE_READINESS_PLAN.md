@@ -124,7 +124,7 @@ Recommended agent flow:
 
 Before public publishing:
 
-- Replace local development `id` with the real Figma plugin id.
+- Confirm manifest `id` matches the real Figma plugin id assigned by Figma Community.
 - Keep `api: "1.0.0"` unless a required API forces an upgrade.
 - Prefer `editorType: ["figma"]` for v1.
 - Keep `documentAccess: "dynamic-page"`.
@@ -250,3 +250,47 @@ npm.cmd run check
 - Release package excludes dependencies, generated server dist, local config, and test-only files.
 - README, Privacy, and MCP setup docs are present.
 
+## Final Release Checklist
+
+Use this checklist immediately before submitting to Figma Community or publishing a GitHub release.
+
+### Repository Verification
+
+- Confirm `VERSIONING.md` matches the intended release version.
+- Confirm root and MCP server package versions match for v1 releases.
+- Run `npm.cmd run verify` from the repository root.
+- Run `npm.cmd run assets:render` if the SVG source files changed.
+- Run `npm.cmd run release:pack`.
+- Run `npm.cmd run release:check`.
+- Confirm `git status --short` contains only intentional changes.
+
+### Figma Plugin Package
+
+- Confirm the manifest id matches the real Figma plugin id assigned by Figma Community.
+- Confirm the public Figma menu contains only `Export AI JSON` and `Open AI Agent Bridge`.
+- Confirm direct `Export AI JSON` works without the MCP server running.
+- Confirm `Open AI Agent Bridge` shows friendly offline state when the MCP server is not running.
+- Confirm bridge mode syncs summary after a selection change when the MCP server is running.
+- Confirm lazy `get_design_node({ nodeId })` returns node detail with the Figma panel open.
+
+### MCP Client Documentation
+
+- Confirm README contains setup notes for Codex, Claude Code, and Cursor.
+- Confirm `mcp-server/README.md` documents install, build, run, tools, and port conflict handling.
+- Confirm both MCP distribution paths are clear: GitHub repository clone and standalone MCP server zip/package.
+
+### Privacy And Listing
+
+- Confirm README and `PRIVACY.md` state that data is sent only to the local loopback MCP server.
+- Confirm release notes mention what data may be exported.
+- Confirm `docs/community-listing.md` is current.
+- Confirm `assets/community/icon-128.png` and `assets/community/cover-1920x1080.png` are exported from the SVG sources and ready for the Figma Community submission flow.
+- Screenshots and GIFs are optional for the first release; add them later only if the listing needs more visual explanation.
+
+### Release Package Contents
+
+- Confirm `release/figma-ai-context-bridge` contains only release plugin assets and docs.
+- Confirm `release/figma-ai-context-bridge-mcp-server` and `release/figma-ai-context-bridge-mcp-server.zip` contain MCP server source, package files, README, and tests.
+- Confirm the Figma plugin release package does not contain `node_modules`, `dist`, `.git`, `.claude`, tests, logs, or local env files.
+- Confirm the MCP server release package does not contain `node_modules`, `dist`, `.git`, `.claude`, logs, or local env files.
+- Confirm `manifest.json` and `schema/ai-export.schema.json` parse as valid JSON.
