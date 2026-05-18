@@ -1786,14 +1786,16 @@ var SelectionStyleExporterBundle = (() => {
               (async function() {
                 try {
                   const exportResult = await buildExport(message.profile || "ai-detail");
-                  figma.ui.postMessage({
-                    type: message.action === "copy" ? "copy-json" : "download-json",
-                    filename: exportResult.filename,
-                    payload: exportResult.payload
-                  });
+                  if (message.action !== "sync") {
+                    figma.ui.postMessage({
+                      type: message.action === "copy" ? "copy-json" : "download-json",
+                      filename: exportResult.filename,
+                      payload: exportResult.payload
+                    });
+                  }
                   if (isPanel) {
                     const panelProfile = message.profile || "ai-detail";
-                    if (panelProfile === "ai-detail") {
+                    if (panelProfile === "ai-detail" && message.action === "sync") {
                       figma.ui.postMessage({
                         type: "mcp-push-selection",
                         body: buildMcpEnvelope2(exportResult.payload)

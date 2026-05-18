@@ -97,6 +97,7 @@ test("plugin UI presents release AI agent bridge without raw export profiles", (
   assert.match(ui, /Last Sync/);
   assert.match(ui, /Copy AI JSON/);
   assert.match(ui, /Download AI JSON/);
+  assert.match(ui, /Sync Detail to Agent/);
   assert.doesNotMatch(ui, /MCP Diagnostics/);
   assert.doesNotMatch(ui, /Raw Referenced/);
   assert.doesNotMatch(ui, /Raw Full/);
@@ -129,6 +130,29 @@ test("plugin UI presents release AI agent bridge without raw export profiles", (
   assert.match(ui, /connectionStatus/);
   assert.match(ui, /lastSyncStatus/);
   assert.doesNotMatch(ui, /mcp-push-summary[\s\S]*download-error/);
+});
+
+test("plugin panel syncs detail selection separately from copy and download", () => {
+  const ui = fs.readFileSync(path.join(__dirname, "..", "ui.html"), "utf8");
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "exporter.ts"), "utf8");
+  const panelExportBranch = source.slice(
+    source.indexOf('if (message && message.type === "panel-export")'),
+    source.indexOf('if (message && message.type === "mcp-detail-request")')
+  );
+
+  assert.match(ui, /id="sync-detail"/);
+  assert.match(ui, /requestExport\("sync"\)/);
+  assert.match(panelExportBranch, /message\.action === "sync"/);
+  assert.match(panelExportBranch, /mcp-push-selection/);
+  assert.doesNotMatch(panelExportBranch, /message\.action !== "copy"[\s\S]*mcp-push-selection/);
+});
+
+test("plugin UI copy export handles missing clipboard API", () => {
+  const ui = fs.readFileSync(path.join(__dirname, "..", "ui.html"), "utf8");
+
+  assert.match(ui, /navigator\.clipboard/);
+  assert.match(ui, /typeof navigator\.clipboard\.writeText === "function"/);
+  assert.match(ui, /execCommand\("copy"\)/);
 });
 
 test("release documentation and scripts are present", () => {

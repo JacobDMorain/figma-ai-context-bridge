@@ -53,13 +53,15 @@ There are two supported ways to get the MCP server:
 
 3. In Figma, run `Open AI Agent Bridge`.
 4. Select or switch to the design you want the agent to inspect.
-5. In the agent, call:
+5. Click `Sync Detail to Agent` when the agent needs the full current-selection payload.
+6. In the agent, call:
    - `get_connection_status`
    - `get_design_summary`
+   - `get_design_selection`
    - `search_nodes`
    - `get_design_node`
 
-`get_design_node` automatically requests detailed data for summary nodes. Keep the Figma panel open while the agent is working.
+Summary syncs automatically when the panel is open. `Sync Detail to Agent` pushes the heavier current-selection payload on demand. `Download AI JSON` and `Copy AI JSON` only export data for the user; they do not update MCP detail selection. `get_design_node` automatically requests detailed data for summary nodes. Keep the Figma panel open while the agent is working.
 
 ### Option B: MCP Server Zip
 
@@ -81,9 +83,11 @@ Recommended agent flow:
 
 1. Check `get_connection_status`.
 2. Read `get_design_summary`.
-3. Use `search_nodes` to find a target node.
-4. Call `get_design_node({ nodeId })` to lazy-load that node's detail.
-5. Use returned CSS, text, tokens, component definitions, positioning, and hints to implement or review code.
+3. Ask the user to click `Sync Detail to Agent` for full current-selection detail when needed.
+4. Read `get_design_selection` after detail sync.
+5. Use `search_nodes` to find a target node.
+6. Call `get_design_node({ nodeId })` to lazy-load that node's detail.
+7. Use returned CSS, text, tokens, component definitions, positioning, and hints to implement or review code.
 
 ## Agent Setup
 
@@ -144,6 +148,7 @@ Use an absolute path if Cursor launches outside this repository. Restart Cursor 
 - **MCP offline**: Start or restart your MCP client so it launches `mcp-server/dist/index.js`.
 - **Port already in use**: If the existing process is a healthy `figma-design` bridge, new MCP server instances automatically proxy to it. If the port is held by another process, stop that process or change `MCP_HTTP_PORT`.
 - **No summary**: Open `Open AI Agent Bridge` in Figma and switch selection once.
+- **No selection detail**: Select the target nodes in Figma and click `Sync Detail to Agent`.
 - **Lazy detail timeout**: Keep the panel open and call `get_design_node` again.
 - **Large selection feels slow**: Summary sync is automatic; detail is lazy-loaded to avoid exporting the full tree by default.
 

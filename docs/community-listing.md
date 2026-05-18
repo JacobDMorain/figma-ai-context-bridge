@@ -20,12 +20,13 @@ Use it when you want an AI coding agent to understand a Figma design before writ
 
 ## Local MCP Bridge
 
-For live workflows, open the AI Agent Bridge panel in Figma. The plugin pushes a lightweight summary to a local MCP server, then agents can search nodes and lazily request detail for the exact node they need. This avoids pushing a full large selection on every change.
+For live workflows, open the AI Agent Bridge panel in Figma. The plugin pushes a lightweight summary to a local MCP server, then users can click Sync Detail to Agent when an agent needs the full current selection payload. Agents can also search nodes and lazily request detail for the exact node they need. This avoids pushing a full large selection on every change.
 
 ## Key Features
 
 - Export AI-friendly JSON for the current Figma selection.
 - Sync current selection summary to a local MCP bridge.
+- Push current selection detail to agents on demand.
 - Let agents search design nodes with `search_nodes`.
 - Lazy-load detailed node data with `get_design_node`.
 - Preserve tokens, components, layout, text, styles, positioning, interactions, and hints.

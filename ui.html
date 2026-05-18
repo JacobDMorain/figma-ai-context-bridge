@@ -46,6 +46,11 @@
         cursor: pointer;
       }
 
+      #sync-detail {
+        width: 100%;
+        margin-top: 8px;
+      }
+
       button.primary {
         border-color: #0b57d0;
         background: #0b57d0;
@@ -175,11 +180,12 @@
       <section id="agent-sync" class="stat">
         <div class="section-title">Agent Sync</div>
         <div class="label">Summary syncs automatically. Agents can lazy-load node detail through MCP.</div>
+        <button class="primary" id="sync-detail">Sync Detail to Agent</button>
       </section>
       <div class="bar"><span id="progress"></span></div>
       <p id="status"></p>
       <div class="row">
-        <button class="primary" id="download">Download AI JSON</button>
+        <button id="download">Download AI JSON</button>
         <button id="copy">Copy AI JSON</button>
       </div>
     </main>
@@ -425,7 +431,25 @@
 
       async function copyJson(message) {
         try {
-          await navigator.clipboard.writeText(JSON.stringify(message.payload, null, 2));
+          const json = JSON.stringify(message.payload, null, 2);
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            await navigator.clipboard.writeText(json);
+          } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = json;
+            textarea.setAttribute("readonly", "");
+            textarea.style.position = "fixed";
+            textarea.style.left = "-9999px";
+            textarea.style.top = "0";
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            const copied = document.execCommand("copy");
+            textarea.remove();
+            if (!copied) {
+              throw new Error("Clipboard API is unavailable");
+            }
+          }
           setProgress(100, "Copied");
           post({ type: "download-complete" });
         } catch (error) {
@@ -437,7 +461,7 @@
       }
 
       function requestExport(action) {
-        setProgress(35, "Serializing");
+        setProgress(35, action === "sync" ? "Syncing detail" : "Serializing");
         post({
           type: "panel-export",
           profile: "ai-detail",
@@ -445,6 +469,7 @@
         });
       }
 
+      document.getElementById("sync-detail").onclick = () => requestExport("sync");
       document.getElementById("download").onclick = () => requestExport("download");
       document.getElementById("copy").onclick = () => requestExport("copy");
 
@@ -486,13 +511,13 @@
 
         if (message.type === "mcp-push-selection") {
           pushToMcp("/api/push/selection", message.body, "selection")
-            .then(() => setProgress(100, "Exported and synced detail"))
+            .then(() => setProgress(100, "Detail synced to agent"))
             .catch((error) => {
               mcpState.online = false;
               mcpState.lastSyncStatus = "Detail push failed";
               mcpState.lastError = errorText(error);
               updateMcpDiagnostics();
-              setProgress(100, "Exported; MCP offline");
+              setProgress(100, "Detail sync failed");
             });
           return;
         }
