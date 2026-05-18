@@ -22,12 +22,14 @@ function jsonResource(uri: string, text: string) {
   };
 }
 
-export function createMcpServer(cache: DesignCache): McpServer {
+type ToolHandlers = ReturnType<typeof createToolHandlers>;
+
+export function createMcpServer(cache: DesignCache, toolHandlers?: ToolHandlers): McpServer {
   const server = new McpServer({
     name: "figma-design",
     version: "0.1.0"
   });
-  const tools = createToolHandlers(cache);
+  const tools = toolHandlers || createToolHandlers(cache);
 
   server.registerTool("get_connection_status", {
     title: "Get Figma MCP connection status",

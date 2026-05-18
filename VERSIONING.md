@@ -14,6 +14,7 @@ For v1, these versions move together. A release tagged `v1.0.0` should include:
 - the Figma plugin release package
 - the standalone MCP server package/zip
 - matching root and MCP server package versions
+- `RELEASE_INFO.json` inside each standalone release zip, with the artifact version matching `package.json`
 - an updated `CHANGELOG.md`
 
 ## Semantic Versioning
@@ -87,3 +88,4 @@ Before tagging a release:
 5. Run `npm.cmd run assets:render` if community SVG assets changed.
 6. Run `npm.cmd run verify`.
 7. Generate release packages with the verified scripts.
+8. Confirm each release zip includes `RELEASE_INFO.json`.

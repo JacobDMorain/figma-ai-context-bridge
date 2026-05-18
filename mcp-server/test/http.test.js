@@ -133,6 +133,25 @@ test("GET requests and POST node-detail support lazy node detail sync", async ()
   });
 });
 
+test("POST /api/tool invokes broker tool handlers for local proxies", async () => {
+  await withServer(async ({ baseUrl, cache }) => {
+    const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };
+    const summary = { mode: "ai-summary", nodes: [{ id: "1:1", name: "Frame" }] };
+    cache.putSummary(key, summary);
+
+    const response = await fetch(`${baseUrl}/api/tool/get_design_summary`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ arguments: key })
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.deepEqual(JSON.parse(body.result.content[0].text).data, summary);
+  });
+});
+
 test("POST node-detail error completes lazy request without payload", async () => {
   await withServer(async ({ baseUrl, cache }) => {
     const key = { fileKey: "file-a", pageId: "page-a", sessionId: "session-a" };

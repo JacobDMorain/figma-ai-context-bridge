@@ -238,6 +238,7 @@ test("MCP server release package checker rejects forbidden files", () => {
 
   try {
     [
+      "RELEASE_INFO.json",
       "README.md",
       "package.json",
       "package-lock.json",
@@ -247,7 +248,16 @@ test("MCP server release package checker rejects forbidden files", () => {
     ].forEach((relativePath) => {
       const filePath = path.join(packageDir, relativePath);
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      fs.writeFileSync(filePath, relativePath.endsWith(".json") ? "{}" : "ok");
+      if (relativePath === "package.json") {
+        fs.writeFileSync(filePath, JSON.stringify({ version: "1.0.0" }));
+      } else if (relativePath === "RELEASE_INFO.json") {
+        fs.writeFileSync(filePath, JSON.stringify({
+          artifact: "figma-ai-context-bridge-mcp-server",
+          version: "1.0.0"
+        }));
+      } else {
+        fs.writeFileSync(filePath, relativePath.endsWith(".json") ? "{}" : "ok");
+      }
     });
 
     assert.equal(checkMcpReleasePackage(packageDir).ok, true);

@@ -142,7 +142,7 @@ Use an absolute path if Cursor launches outside this repository. Restart Cursor 
 ## Troubleshooting
 
 - **MCP offline**: Start or restart your MCP client so it launches `mcp-server/dist/index.js`.
-- **Port already in use**: Stop the old server process using port `7800`, or restart your MCP client.
+- **Port already in use**: If the existing process is a healthy `figma-design` bridge, new MCP server instances automatically proxy to it. If the port is held by another process, stop that process or change `MCP_HTTP_PORT`.
 - **No summary**: Open `Open AI Agent Bridge` in Figma and switch selection once.
 - **Lazy detail timeout**: Keep the panel open and call `get_design_node` again.
 - **Large selection feels slow**: Summary sync is automatic; detail is lazy-loaded to avoid exporting the full tree by default.

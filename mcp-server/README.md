@@ -106,7 +106,7 @@ Keep `Open AI Agent Bridge` open in Figma while using lazy detail.
 
 ## Troubleshooting
 
-- `EADDRINUSE`: another server is already using port `7800`.
+- `EADDRINUSE`: if another healthy `figma-design` bridge is already using port `7800`, new MCP server instances automatically proxy to it. If a different process owns the port, stop that process or change `MCP_HTTP_PORT`.
 - `connected: false`: open the Figma panel or wait for heartbeat.
 - missing summary: switch selection in Figma once.
 - lazy detail timeout: keep the panel open and call `get_design_node` again.

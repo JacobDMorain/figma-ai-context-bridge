@@ -7,6 +7,8 @@ const sourceRoot = path.join(root, "mcp-server");
 const releaseRoot = path.join(root, "release");
 const packageDir = path.join(releaseRoot, "figma-ai-context-bridge-mcp-server");
 const zipPath = `${packageDir}.zip`;
+const rootPackage = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+const mcpPackage = JSON.parse(fs.readFileSync(path.join(sourceRoot, "package.json"), "utf8"));
 
 const files = [
   "README.md",
@@ -35,12 +37,27 @@ function copyDirectory(relativePath) {
   });
 }
 
+function writeReleaseInfo() {
+  const releaseInfo = {
+    artifact: "figma-ai-context-bridge-mcp-server",
+    version: mcpPackage.version,
+    rootPackageVersion: rootPackage.version,
+    mcpPackageVersion: mcpPackage.version,
+    generatedAt: new Date().toISOString()
+  };
+  fs.writeFileSync(
+    path.join(packageDir, "RELEASE_INFO.json"),
+    `${JSON.stringify(releaseInfo, null, 2)}\n`
+  );
+}
+
 fs.rmSync(packageDir, { recursive: true, force: true });
 fs.rmSync(zipPath, { force: true });
 fs.mkdirSync(packageDir, { recursive: true });
 files.forEach(copyFile);
 copyDirectory("src");
 copyDirectory("test");
+writeReleaseInfo();
 
 execFileSync("powershell.exe", [
   "-NoProfile",

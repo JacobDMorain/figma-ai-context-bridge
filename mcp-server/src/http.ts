@@ -1,5 +1,6 @@
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { DesignCache } from "./cache.js";
+import { createToolHandlers } from "./tools.js";
 import type { CacheKey } from "./types.js";
 
 interface HttpServerOptions {
@@ -74,6 +75,17 @@ export function createHttpServer(options: HttpServerOptions): HttpServerHandle {
   let actualPort = listenPort;
   const hosts = options.host ? [options.host] : ["127.0.0.1", "::1"];
   const servers: http.Server[] = [];
+  const tools = createToolHandlers(options.cache);
+  const toolMethods = {
+    get_connection_status: tools.getConnectionStatus,
+    get_design_summary: tools.getDesignSummary,
+    get_design_selection: tools.getDesignSelection,
+    get_design_diff: tools.getDesignDiff,
+    get_design_tokens: tools.getDesignTokens,
+    get_component_definitions: tools.getComponentDefinitions,
+    get_design_node: tools.getDesignNode,
+    search_nodes: tools.searchNodes
+  };
 
   const handleRequest = async (request: IncomingMessage, response: ServerResponse) => {
     try {
@@ -121,6 +133,20 @@ export function createHttpServer(options: HttpServerOptions): HttpServerHandle {
             createdAt: detailRequest.createdAt
           }))
         });
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname.startsWith("/api/tool/")) {
+        const toolName = decodeURIComponent(url.pathname.slice("/api/tool/".length));
+        const tool = toolMethods[toolName as keyof typeof toolMethods];
+        if (!tool) {
+          writeJson(response, 404, { ok: false, error: `Unknown tool: ${toolName}` });
+          return;
+        }
+
+        const body = await readJson(request);
+        const result = await tool(body.arguments || {});
+        writeJson(response, 200, { ok: true, result });
         return;
       }
 
