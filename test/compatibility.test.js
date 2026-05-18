@@ -135,6 +135,7 @@ test("plugin UI presents release AI agent bridge without raw export profiles", (
   assert.match(ui, /mcp-detail-request/);
   assert.match(ui, /connectionStatus/);
   assert.match(ui, /lastSyncStatus/);
+  assert.equal(ui.indexOf("MCP Server Setup") > ui.indexOf("Copy AI JSON"), true);
   assert.doesNotMatch(ui, /mcp-push-summary[\s\S]*download-error/);
 });
 

@@ -202,6 +202,12 @@
         <div class="label">Summary syncs automatically. Agents can lazy-load node detail through MCP.</div>
         <button class="primary" id="sync-detail">Sync Detail to Agent</button>
       </section>
+      <div class="bar"><span id="progress"></span></div>
+      <p id="status"></p>
+      <div class="row">
+        <button id="download">Download AI JSON</button>
+        <button id="copy">Copy AI JSON</button>
+      </div>
       <section id="mcp-setup" class="stat">
         <div class="section-title">MCP Server Setup</div>
         <div class="label">Live AI agent sync requires the local MCP server. Direct AI JSON export works without it.</div>
@@ -211,12 +217,6 @@
           <a class="setup-link" href="https://github.com/JacobDMorain/figma-ai-context-bridge" target="_blank" rel="noreferrer">GitHub repository</a>
         </div>
       </section>
-      <div class="bar"><span id="progress"></span></div>
-      <p id="status"></p>
-      <div class="row">
-        <button id="download">Download AI JSON</button>
-        <button id="copy">Copy AI JSON</button>
-      </div>
     </main>
     <script>
       let downloaded = false;
