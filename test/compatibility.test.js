@@ -94,6 +94,12 @@ test("plugin UI presents release AI agent bridge without raw export profiles", (
   assert.match(ui, /Connection/);
   assert.match(ui, /Current Selection/);
   assert.match(ui, /Agent Sync/);
+  assert.match(ui, /MCP Server Setup/);
+  assert.match(ui, /https:\/\/github\.com\/JacobDMorain\/figma-ai-context-bridge/);
+  assert.match(ui, /https:\/\/github\.com\/JacobDMorain\/figma-ai-context-bridge\/releases\/latest/);
+  assert.match(ui, /Download MCP server/);
+  assert.match(ui, /View setup guide/);
+  assert.match(ui, /GitHub repository/);
   assert.match(ui, /Last Sync/);
   assert.match(ui, /Copy AI JSON/);
   assert.match(ui, /Download AI JSON/);
@@ -190,6 +196,7 @@ test("release documentation and scripts are present", () => {
   assert.match(readme, /Claude Code/);
   assert.match(readme, /Cursor/);
   assert.match(readme, /MCP server zip/);
+  assert.match(readme, /https:\/\/github\.com\/JacobDMorain\/figma-ai-context-bridge\/releases\/latest/);
   assert.match(mcpReadme, /Codex/);
   assert.match(mcpReadme, /Claude Code/);
   assert.match(mcpReadme, /Cursor/);

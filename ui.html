@@ -57,6 +57,26 @@
         color: #ffffff;
       }
 
+      .link-row {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .setup-link {
+        display: block;
+        min-height: 28px;
+        box-sizing: border-box;
+        border: 1px solid #c9cdd3;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #0b57d0;
+        padding: 6px 8px;
+        text-decoration: none;
+        font-weight: 600;
+      }
+
       .stats {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -181,6 +201,15 @@
         <div class="section-title">Agent Sync</div>
         <div class="label">Summary syncs automatically. Agents can lazy-load node detail through MCP.</div>
         <button class="primary" id="sync-detail">Sync Detail to Agent</button>
+      </section>
+      <section id="mcp-setup" class="stat">
+        <div class="section-title">MCP Server Setup</div>
+        <div class="label">Live AI agent sync requires the local MCP server. Direct AI JSON export works without it.</div>
+        <div class="link-row">
+          <a class="setup-link" href="https://github.com/JacobDMorain/figma-ai-context-bridge/releases/latest" target="_blank" rel="noreferrer">Download MCP server</a>
+          <a class="setup-link" href="https://github.com/JacobDMorain/figma-ai-context-bridge#quick-start-mcp-bridge" target="_blank" rel="noreferrer">View setup guide</a>
+          <a class="setup-link" href="https://github.com/JacobDMorain/figma-ai-context-bridge" target="_blank" rel="noreferrer">GitHub repository</a>
+        </div>
       </section>
       <div class="bar"><span id="progress"></span></div>
       <p id="status"></p>
