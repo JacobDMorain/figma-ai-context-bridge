@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1
+
+- Prepared a patch release for the latest plugin and MCP bridge updates.
+- Regenerated release packages for Figma Community and standalone MCP server distribution.
+
 ## 1.0.0
 
 - Initial release candidate for Figma AI Context Bridge.

@@ -1,6 +1,6 @@
 {
   "name": "figma-ai-context-bridge",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Figma plugin and local MCP bridge for AI coding agents.",
   "scripts": {
